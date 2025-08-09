@@ -1,3 +1,4 @@
 # Project ignores
 Markdowns/
 .cursor/
+**/node_modules
