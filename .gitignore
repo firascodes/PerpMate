@@ -2,3 +2,9 @@
 Markdowns/
 .cursor/
 **/node_modules
+.env
+apps/*/.env
+**/dist
+**/build
+**/coverage
+**/.prisma
