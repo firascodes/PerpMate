@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { Bot } from 'grammy';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { logger } from './logger';
 import { rateLimitMiddleware } from './middleware/rateLimit';
 import { handleStart } from './commands/start';
@@ -47,7 +47,7 @@ bot.catch((err) => {
 const app = express();
 
 // Health check endpoint
-app.get('/health', (_req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ 
     ok: true, 
     timestamp: new Date().toISOString(),
@@ -57,7 +57,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Metrics endpoint (basic)
-app.get('/metrics', (_req, res) => {
+app.get('/metrics', (_req: Request, res: Response) => {
   const usage = process.memoryUsage();
   res.json({
     memory: {
