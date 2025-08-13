@@ -1,4 +1,6 @@
-export const metadata = { title: "PerpMate" };
+import { Providers } from "./providers";
+
+export const metadata = { title: "PerpMate Dashboard" };
 
 export default function RootLayout({
   children,
@@ -7,7 +9,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
