@@ -2,7 +2,7 @@ import { Context, NextFunction } from 'grammy';
 import { logger } from '../logger';
 
 const userLastCommand = new Map<string, number>();
-const RATE_LIMIT_MS = 2000; // 2 seconds between commands
+const RATE_LIMIT_MS = 1000; //  seconds between commands
 
 export async function rateLimitMiddleware(ctx: Context, next: NextFunction) {
   const userId = String(ctx.from?.id ?? '');

@@ -9,7 +9,7 @@ export async function handleFund(ctx: Context) {
   }
 
   const keyboard = new InlineKeyboard()
-    .text('💙 Solana', 'fund_src_solana')
+    .text('🟣 Solana', 'fund_src_solana')
     .text('🔵 Base', 'fund_src_base');
 
   await ctx.reply(
