@@ -1,6 +1,9 @@
-import { Providers } from "./providers";
+import "./globals.css";
 
-export const metadata = { title: "PerpMate Dashboard" };
+export const metadata = { 
+  title: "PerpMate Dashboard",
+  description: "AI-powered cross-chain trading dashboard",
+};
 
 export default function RootLayout({
   children,
@@ -10,7 +13,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   );
