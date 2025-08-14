@@ -1,6 +1,6 @@
 import "./globals.css";
 
-export const metadata = { 
+export const metadata = {
   title: "PerpMate Dashboard",
   description: "AI-powered cross-chain trading dashboard",
 };
@@ -12,9 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

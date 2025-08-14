@@ -1,4 +1,4 @@
-import { createConfig, getQuote, getTools, ChainId } from '@lifi/sdk';
+import { createConfig, getQuote as lifiGetQuote, getTools } from '@lifi/sdk';
 import { logger } from '../logger';
 
 // Initialize Li.Fi configuration
@@ -18,7 +18,7 @@ export async function checkLiFiConnectivity(): Promise<boolean> {
   try {
     ensureLiFiConfig();
     const tools = await getTools();
-    logger.info({ toolCount: tools.length }, 'Li.Fi connectivity OK');
+    logger.info({ toolsAvailable: !!tools }, 'Li.Fi connectivity OK');
     return true;
   } catch (error) {
     logger.error({ error }, 'Li.Fi connectivity failed');
@@ -29,28 +29,30 @@ export async function checkLiFiConnectivity(): Promise<boolean> {
 export async function getRouteQuote(
   sourceChain: 'solana' | 'base', 
   amount: number, 
+  fromAddress: string,
   toAddress: string
 ) {
   try {
     ensureLiFiConfig();
     
-    // Map chain names to Li.Fi chain IDs
+    // Map chain names to Li.Fi chain IDs (use numeric values)
     const chainMap = {
-      'solana': ChainId.SOL, // Solana mainnet
-      'base': ChainId.BAS, // Base mainnet
+      'solana': 1151111081099710, // Solana mainnet
+      'base': 8453, // Base mainnet
     };
     
-    const quote = await getQuote({
+    const quote = await lifiGetQuote({
+      fromAddress,
       fromChain: chainMap[sourceChain],
       fromToken: 'USDC', // USDC symbol
       fromAmount: (amount * 1e6).toString(), // USDC has 6 decimals
-      toChain: ChainId.ARB, // Arbitrum (HyperEVM)
+      toChain: 42161, // Arbitrum (HyperEVM)
       toToken: 'USDC',
       toAddress,
       slippage: 0.03, // 3% slippage tolerance
     });
     
-    logger.info({ sourceChain, amount, quote: quote.id }, 'Route quote generated');
+    logger.info({ sourceChain, amount, quoteAvailable: !!quote }, 'Route quote generated');
     return quote;
   } catch (error) {
     logger.error({ error, sourceChain, amount }, 'Failed to get route quote');
