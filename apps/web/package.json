@@ -13,11 +13,18 @@
   "license": "ISC",
   "dependencies": {
     "@privy-io/react-auth": "^2.21.2",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^1.2.1",
+    "lucide-react": "^0.539.0",
     "next": "^15.4.6",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
@@ -26,6 +33,7 @@
     "postcss": "^8.4.31",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.12",
+    "tw-animate-css": "^1.3.6",
     "typescript": "^5.9.2"
   },
   "description": ""
