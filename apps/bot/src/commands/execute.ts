@@ -19,12 +19,12 @@ export async function handleExecute(ctx: Context) {
   if (!telegramId) return ctx.reply('Unable to resolve user.');
 
   const user = await getUserByTelegramId(telegramId);
-  if (!user?.walletAddress || !user?.walletId) {
-    return ctx.reply('Wallet not ready. Run /wallet first.');
+  if (!user?.evmWalletAddress || !user?.evmWalletId) {
+    return ctx.reply('EVM wallet not ready. Run /wallet first.');
   }
 
   try {
-    const { exchange, info } = initHlClients(user.walletId, user.walletAddress);
+    const { exchange, info } = initHlClients(user.evmWalletId, user.evmWalletAddress);
     const { meta, ctx: assetCtxs }: any = await fetchUniverse(info);
     const idx = getAssetIndexBySymbol(meta, asset);
     if (idx < 0) return ctx.reply(`Asset ${asset} not found on Hyperliquid.`);

@@ -2,23 +2,49 @@ import { Context, InlineKeyboard } from 'grammy';
 
 export async function handleHelp(ctx: Context) {
   const kb = new InlineKeyboard()
-    .text('Wallet', 'help_wallet')
-    .text('Fund', 'help_fund')
+    .text('💰 Fund', 'help_fund')
+    .text('👛 Wallet', 'help_wallet')
     .row()
-    .text('Preview', 'help_preview')
-    .text('Execute', 'help_execute')
+    .text('💸 Withdraw', 'help_withdraw')
+    .text('📊 Active', 'help_active')
     .row()
-    .text('Active', 'help_active');
+    .text('💳 Balance', 'help_balance')
+    .text('🚰 Faucet', 'help_faucet');
 
-  const msg = [
-    'Commands:',
-    '- /start — start and onboarding info',
-    '- /wallet — show or create your embedded wallet',
-    '- /fund — fund-in via Li.Fi (Solana/Base → HyperEVM/Hyperliquid)',
-    '- /preview — build order preview',
-    '- /execute — place a market order (MVP)',
-    '- /active — show open positions/orders',
-  ].join('\n');
+  const isTestnet = process.env.TESTNET_MODE === 'true' || process.env.NODE_ENV === 'testnet';
+  const testnetNote = isTestnet ? '\n\n🧪 **TESTNET MODE** - Safe for testing!' : '';
 
-  await ctx.reply(msg, { reply_markup: kb });
+  const msg = `🤖 **PerpMate Bot Help**${testnetNote}
+
+**💼 Account Management:**
+• \`/start\` - Create your account & multi-chain wallets
+• \`/wallet\` - View your Solana & EVM wallet addresses
+• \`/balance\` - Check USDC balances on all chains${isTestnet ? '\n• `/faucet` - Get testnet USDC for testing' : ''}
+
+**💰 Funding & Withdrawals:**
+• \`/fund\` - Deposit USDC from Solana/Base to bot
+• \`/withdraw\` - Send USDC from bot to external address
+
+**📈 Trading:**
+• \`/execute\` - Place a trade (e.g., \`/execute BTC buy 50 3\`)
+• \`/active\` - View your open positions & P&L
+• \`/preview\` - Preview pending route/trade details
+
+**🤖 Natural Language Trading:**
+Just type what you want to trade!
+• "buy 100 btc"
+• "short eth with 2x leverage" 
+• "sell all my solana"
+• "long 50 dollars of bitcoin"
+
+**ℹ️ Other:**
+• \`/help\` - Show this help menu
+• \`/login\` - Get dashboard login link
+
+**Quick Actions:**`;
+
+  await ctx.reply(msg, {
+    reply_markup: kb,
+    parse_mode: 'Markdown',
+  });
 }

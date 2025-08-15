@@ -6,12 +6,12 @@ export async function handleActive(ctx: Context) {
   const telegramId = String(ctx.from?.id ?? '');
   if (!telegramId) return ctx.reply('Unable to resolve user.');
   const user = await getUserByTelegramId(telegramId);
-  if (!user?.walletAddress || !user?.walletId) return ctx.reply('Wallet not ready. Run /wallet first.');
+  if (!user?.evmWalletAddress || !user?.evmWalletId) return ctx.reply('EVM wallet not ready. Run /wallet first.');
 
   try {
-    const { info } = initHlClients(user.walletId, user.walletAddress);
+    const { info } = initHlClients(user.evmWalletId, user.evmWalletAddress);
     const { meta }: any = await fetchUniverse(info);
-    const state: any = await fetchUserState(info, user.walletAddress);
+    const state: any = await fetchUserState(info, user.evmWalletAddress);
 
     const positions = (state?.assetPositions || [])
       .map((p: any, i: number) => ({ i, p }))

@@ -16,14 +16,16 @@ function getPrivyClient(): PrivyClient | null {
   return new PrivyClient(appId, appSecret, authorizationPrivateKey ? { walletApi: { authorizationPrivateKey } } : undefined);
 }
 
-export async function getOrCreateUserWallet(telegramId: string): Promise<WalletRecord> {
+export async function getOrCreateUserWallet(telegramId: string, chainType: 'ethereum' | 'solana' = 'ethereum'): Promise<WalletRecord> {
   let user = await prisma.user.findUnique({ where: { telegramId } });
   if (!user) {
     user = await prisma.user.create({ data: { telegramId } });
   }
 
-  if (user.walletAddress) {
-    return { userId: user.id, walletAddress: user.walletAddress, privyUserId: user.privyUserId };
+  // Check if we already have the wallet for this chain type
+  const existingAddress = chainType === 'ethereum' ? user.evmWalletAddress : user.solanaWalletAddress;
+  if (existingAddress) {
+    return { userId: user.id, walletAddress: existingAddress, privyUserId: user.privyUserId };
   }
 
   const client = getPrivyClient();
@@ -33,19 +35,30 @@ export async function getOrCreateUserWallet(telegramId: string): Promise<WalletR
   }
 
   try {
-    // Prefer camelCase per current Privy docs
-    let created = await (client as any).walletApi.createWallet({ chainType: 'ethereum' });
+    // Create wallet for the specified chain type
+    let created = await (client as any).walletApi.createWallet({ chainType });
     const address: string | undefined = created?.address;
     const walletId: string | undefined = created?.id || created?.walletId;
+    
     if (address) {
-      user = await prisma.user.update({ where: { id: user.id }, data: { walletAddress: address, walletId } });
-      logger.info({ telegramId, address, walletId }, 'Created Privy wallet for user');
+      // Update the appropriate wallet fields based on chain type
+      const updateData = chainType === 'ethereum' 
+        ? { evmWalletAddress: address, evmWalletId: walletId }
+        : { solanaWalletAddress: address, solanaWalletId: walletId };
+      
+      user = await prisma.user.update({ 
+        where: { id: user.id }, 
+        data: updateData 
+      });
+      
+      logger.info({ telegramId, address, walletId, chainType }, 'Created Privy wallet for user');
       return { userId: user.id, walletAddress: address, privyUserId: user.privyUserId };
     }
+    
     logger.error({ created }, 'Privy createWallet returned no address');
     return { userId: user.id, walletAddress: 'pending', privyUserId: user.privyUserId };
   } catch (err: any) {
-    logger.error({ err, hint: 'Privy createWallet failed. Try ensuring chainType is correct (ethereum) and restart the bot.' }, 'Privy wallet creation failed');
+    logger.error({ err, chainType, hint: `Privy createWallet failed for ${chainType}. Check Privy dashboard settings.` }, 'Privy wallet creation failed');
     return { userId: user.id, walletAddress: 'pending', privyUserId: user.privyUserId };
   }
 }

@@ -1,5 +1,11 @@
-generator client {
+generator client_bot {
     provider = "prisma-client-js"
+    output   = "../../../node_modules/.prisma/client"
+}
+
+generator client_web {
+    provider = "prisma-client-js"
+    output   = "../../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -8,16 +14,31 @@ datasource db {
 }
 
 model User {
-    id             String          @id @default(cuid())
-    telegramId     String          @unique
-    privyUserId    String?
-    walletId       String?
-    walletAddress  String?
+    id          String  @id @default(cuid())
+    telegramId  String  @unique
+    privyUserId String?
+
+    // Multi-chain wallet support
+    evmWalletId         String? // Privy EVM wallet ID
+    evmWalletAddress    String? // For Base, Arbitrum, etc.
+    solanaWalletId      String? // Privy Solana wallet ID  
+    solanaWalletAddress String? // For Solana
+
     createdAt      DateTime        @default(now())
     updatedAt      DateTime        @updatedAt
     trades         Trade[]
     positions      Position[]
     fundingIntents FundingIntent[]
+    loginTokens    LoginToken[]
+}
+
+model LoginToken {
+    id        String   @id @default(cuid())
+    token     String   @unique
+    userId    String
+    user      User     @relation(fields: [userId], references: [id])
+    expiresAt DateTime
+    createdAt DateTime @default(now())
 }
 
 model Signal {

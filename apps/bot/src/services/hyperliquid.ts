@@ -51,12 +51,32 @@ export async function checkUserExists(info: hl.InfoClient, address: string, sour
 }
 
 export async function placeMarketOrderHL(exchange: hl.ExchangeClient, params: { assetIndex: number; buy: boolean; size: number; }) {
-  const res = await exchange.order({
-    orders: [
-      { a: params.assetIndex, b: params.buy, s: params.size, r: false, p: 0, t: { trigger: { isMarket: true, tpsl: 'tp', triggerPx: 0 } } },
-    ],
-    grouping: 'na',
-  } as any);
-  logger.info({ res }, 'HL order response');
-  return res;
+  try {
+    // Convert size to string with proper precision
+    const sizeStr = params.size.toFixed(6);
+    
+    const res = await exchange.order({
+      orders: [
+        {
+          a: params.assetIndex,  // asset index
+          b: params.buy,         // buy (true) or sell (false)
+          p: "0",               // price (0 for market order) - must be string
+          s: sizeStr,           // size - must be string
+          r: false,             // reduce only
+          t: {                  // order type
+            limit: {
+              tif: "Ioc"        // Immediate or Cancel for market orders
+            }
+          }
+        }
+      ],
+      grouping: "na"            // no grouping
+    });
+    
+    logger.info({ res, params }, 'HL order placed successfully');
+    return res;
+  } catch (error) {
+    logger.error({ error, params }, 'Failed to place HL order');
+    throw error;
+  }
 }

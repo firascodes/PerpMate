@@ -9,8 +9,8 @@ export async function handlePreview(ctx: Context) {
   
   try {
     const user = await getUserByTelegramId(telegramId);
-    if (!user || !user.walletAddress) {
-      return ctx.reply('❌ No wallet found. Use /wallet first.');
+    if (!user || !user.evmWalletAddress) {
+      return ctx.reply('❌ No EVM wallet found. Use /wallet first.');
     }
 
     // Get the latest funding intent for this user
@@ -29,7 +29,7 @@ export async function handlePreview(ctx: Context) {
       `💰 Amount: ${latestIntent.amount} ${latestIntent.token}\n` +
       `📤 From: ${latestIntent.sourceChain.toUpperCase()}\n` +
       `📥 To: Hyperliquid (Arbitrum)\n` +
-      `📍 Destination: ${user.walletAddress}\n\n` +
+      `📍 Destination: ${user.evmWalletAddress}\n\n` +
       `⚠️ Execution coming soon in Phase 1 completion.`,
       { parse_mode: 'Markdown' }
     );

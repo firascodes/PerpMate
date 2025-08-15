@@ -70,6 +70,33 @@ export type LifiQuoteParams = {
   recipient?: string;
 };
 
+/**
+ * Execute a Li.Fi route (bridge transaction)
+ * Note: This is a placeholder - actual implementation depends on signing infrastructure
+ */
+export async function executeLiFiRoute(route: any, fromAddress: string): Promise<string | null> {
+  try {
+    logger.info({ route, fromAddress }, 'Executing Li.Fi route');
+    
+    // TODO: Implement actual route execution with Privy signer
+    // This would involve:
+    // 1. Getting Privy session signer for the user
+    // 2. Signing the transaction with proper gas estimation
+    // 3. Broadcasting to the source chain
+    // 4. Monitoring execution status
+    
+    // For now, return a mock transaction hash
+    const mockTxHash = `0x${Math.random().toString(16).slice(2, 66)}`;
+    
+    logger.info({ mockTxHash, fromAddress }, 'Li.Fi route execution started (mock)');
+    return mockTxHash;
+    
+  } catch (error) {
+    logger.error({ error, route, fromAddress }, 'Failed to execute Li.Fi route');
+    return null;
+  }
+}
+
 export async function getQuote(_params: LifiQuoteParams) {
   // Placeholder: real implementation will call Li.Fi quote endpoint with API key
   return { routes: [], etaMinutes: 0, feeUsd: 0 };

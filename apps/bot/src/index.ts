@@ -1,17 +1,30 @@
 import 'dotenv/config';
-import { Bot } from 'grammy';
+import { Bot, InlineKeyboard } from 'grammy';
 import express, { Request, Response } from 'express';
 import { logger } from './logger';
 import { rateLimitMiddleware } from './middleware/rateLimit';
 import { handleStart } from './commands/start';
 import { handleHelp } from './commands/help';
 import { handleWallet } from './commands/wallet';
-import { handleFund } from './commands/fund';
+import { handleFund, handleDepositAddress } from './commands/fund';
 import { handlePreview } from './commands/preview';
 import { handleExecute } from './commands/execute';
 import { handleActive } from './commands/active';
+import { handleLogin } from './commands/login';
+import { handleBalance } from './commands/balance';
+import { handleFaucet, handleFaucetRequest } from './commands/faucet';
+import { 
+  handleWithdraw, 
+  handleWithdrawChainSelection, 
+  handleWithdrawAmount,
+  handleWithdrawAddress,
+  handleWithdrawConfirm,
+  handleWithdrawCancel 
+} from './commands/withdraw';
 import { getUserByTelegramId } from './db/users';
-import { logFundingIntent } from './db/funding';
+import { parseTradeCommand, formatTradePreview, suggestCorrection } from './services/nlp';
+import { executeTradeOrder } from './services/trading';
+import { setupWebhookRoutes } from './services/webhooks';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -25,8 +38,10 @@ const bot = new Bot(TELEGRAM_BOT_TOKEN);
 // Apply rate limiting middleware
 bot.use(rateLimitMiddleware);
 
-// In-memory pending funding source by user
-const pendingSource = new Map<string, 'solana' | 'base'>();
+// In-memory state for natural language commands and monitoring
+const pendingCommands = new Map<string, 'trade' | 'fund'>();
+const pendingTrades = new Map<string, any>();
+const monitoredWallets = new Map<string, { chain: 'solana' | 'base'; telegramId: string; startTime: Date }>(); // Track wallets being monitored for deposits
 
 bot.command('start', handleStart);
 bot.command('help', handleHelp);
@@ -35,55 +50,140 @@ bot.command('fund', handleFund);
 bot.command('preview', handlePreview);
 bot.command('execute', handleExecute);
 bot.command('active', handleActive);
+bot.command('login', handleLogin);
+bot.command('balance', handleBalance);
+bot.command('withdraw', handleWithdraw);
+bot.command('faucet', handleFaucet);
 
 // Inline button callbacks (help)
 bot.callbackQuery('help_wallet', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /wallet to view/create your wallet.' }));
 bot.callbackQuery('help_fund', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /fund to fund from Solana/Base via Li.Fi.' }));
-bot.callbackQuery('help_preview', async (ctx) => ctx.answerCallbackQuery({ text: 'Preview coming soon.' }));
+bot.callbackQuery('help_withdraw', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /withdraw to send USDC to external address.' }));
+bot.callbackQuery('help_balance', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /balance to check your USDC balances.' }));
+bot.callbackQuery('help_faucet', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /faucet to get testnet USDC (testnet only).' }));
+bot.callbackQuery('help_active', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /active to view open positions.' }));
 bot.callbackQuery('help_execute', async (ctx) => ctx.answerCallbackQuery({ text: 'Execute coming soon.' }));
 bot.callbackQuery('help_active', async (ctx) => ctx.answerCallbackQuery({ text: 'Active positions coming soon.' }));
 
-// Inline button callbacks (fund)
-bot.callbackQuery('fund_src_solana', async (ctx) => {
-  await ctx.answerCallbackQuery();
-  pendingSource.set(String(ctx.from?.id), 'solana');
-  await ctx.reply(
-    `💙 **Solana → Hyperliquid**\n\nOnly USDC supported.\nEnter amount (e.g., 50):`,
-    { parse_mode: 'Markdown' }
-  );
+// Inline button callbacks (deposit addresses)
+bot.callbackQuery('deposit_solana', async (ctx) => {
+  await handleDepositAddress(ctx, 'solana');
 });
 
-bot.callbackQuery('fund_src_base', async (ctx) => {
-  await ctx.answerCallbackQuery();
-  pendingSource.set(String(ctx.from?.id), 'base');
-  await ctx.reply(
-    `🔵 **Base → Hyperliquid**\n\nOnly USDC supported.\nEnter amount (e.g., 50):`,
-    { parse_mode: 'Markdown' }
-  );
+bot.callbackQuery('deposit_base', async (ctx) => {
+  await handleDepositAddress(ctx, 'base');
 });
 
-// Capture next text as amount for funding intent
-bot.on('message:text', async (ctx) => {
-  const userIdKey = String(ctx.from?.id ?? '');
-  const source = pendingSource.get(userIdKey);
-  if (!source) return; // not in funding flow
-
-  const text = ctx.message.text?.trim() || '';
-  const amount = Number(text);
-  if (!amount || !isFinite(amount) || amount <= 0) {
-    return ctx.reply('Please enter a valid USDC amount (e.g., 50).');
+// Trade confirmation callbacks
+bot.callbackQuery(/confirm_trade_(\d+)/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const telegramId = String(ctx.from?.id);
+  
+  // Get stored trade intent
+  const tradeIntent = pendingTrades.get(telegramId);
+  if (!tradeIntent) {
+    await ctx.reply('❌ Trade session expired. Please try again.');
+    return;
   }
+  
+  // Execute the trade
+  await executeTradeOrder(bot, telegramId, tradeIntent);
+  
+  // Clean up
+  pendingCommands.delete(telegramId);
+  pendingTrades.delete(telegramId);
+});
 
-  const user = await getUserByTelegramId(userIdKey);
-  if (!user) return ctx.reply('User not found. Try /start again.');
+bot.callbackQuery('cancel_trade', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const telegramId = String(ctx.from?.id);
+  pendingCommands.delete(telegramId);
+  await ctx.reply('❌ Trade cancelled.');
+});
 
-  await logFundingIntent(user.id, source, amount);
-  pendingSource.delete(userIdKey);
+// Faucet callbacks
+bot.callbackQuery('faucet_solana', async (ctx) => {
+  await handleFaucetRequest(ctx, 'solana');
+});
 
-  await ctx.reply(
-    `✅ **Deposit Intent Logged**\n\n💰 ${amount} USDC from ${source.toUpperCase()}\n\nUse /preview to see route details before execution.`,
-    { parse_mode: 'Markdown' }
-  );
+bot.callbackQuery('faucet_base', async (ctx) => {
+  await handleFaucetRequest(ctx, 'base');
+});
+
+// Withdraw callbacks
+bot.callbackQuery('withdraw_solana', async (ctx) => {
+  await handleWithdrawChainSelection(ctx, 'solana');
+});
+
+bot.callbackQuery('withdraw_base', async (ctx) => {
+  await handleWithdrawChainSelection(ctx, 'base');
+});
+
+bot.callbackQuery('withdraw_confirm', async (ctx) => {
+  await handleWithdrawConfirm(ctx);
+});
+
+bot.callbackQuery('withdraw_cancel', async (ctx) => {
+  await handleWithdrawCancel(ctx);
+});
+
+// Natural language trading and withdraw handler
+bot.on('message:text', async (ctx) => {
+  const text = ctx.message.text?.trim() || '';
+  const telegramId = String(ctx.from?.id);
+  
+  // Check if user is in withdraw flow first
+  const { hasActiveWithdrawSession, handleWithdrawAmount, handleWithdrawAddress } = await import('./commands/withdraw');
+  
+  try {
+    const withdrawSession = hasActiveWithdrawSession(telegramId);
+    if (withdrawSession) {
+      if (withdrawSession.step === 'enter_amount') {
+        return await handleWithdrawAmount(ctx, text);
+      } else if (withdrawSession.step === 'enter_address') {
+        return await handleWithdrawAddress(ctx, text);
+      }
+    }
+  } catch (error) {
+    // Continue to natural language trading if withdraw handling fails
+  }
+  
+  // Skip if it's a command
+  if (text.startsWith('/')) return;
+  
+  try {
+    // Show typing indicator while processing with Gemini
+    await ctx.replyWithChatAction('typing');
+    
+    const tradeIntent = await parseTradeCommand(text);
+    
+    if (tradeIntent.isValid) {
+      // Valid trade command detected
+      const preview = formatTradePreview(tradeIntent);
+      
+      const keyboard = new InlineKeyboard()
+        .text('✅ Confirm Trade', `confirm_trade_${Date.now()}`)
+        .text('❌ Cancel', 'cancel_trade');
+      
+      await ctx.reply(preview, {
+        reply_markup: keyboard,
+        parse_mode: 'Markdown'
+      });
+      
+      // Store trade intent for confirmation
+      pendingCommands.set(telegramId, 'trade');
+      pendingTrades.set(telegramId, tradeIntent);
+      
+    } else if (tradeIntent.confidence > 0.1) {
+      // Partial match - suggest corrections
+      const suggestion = suggestCorrection(tradeIntent);
+      await ctx.reply(suggestion, { parse_mode: 'Markdown' });
+    }
+    // If confidence is very low, ignore (might be casual conversation)
+    
+  } catch (error) {
+    logger.error({ error, text, telegramId }, 'Error processing natural language command');
+  }
 });
 
 bot.catch((err) => {
@@ -116,11 +216,19 @@ app.get('/metrics', (_req: Request, res: Response) => {
   });
 });
 
+// Setup webhook endpoints for real-time deposit detection (production)
+setupWebhookRoutes(app, bot);
+
 async function main() {
   const port = Number(process.env.PORT || 8080);
   await bot.start();
   app.listen(port, () => logger.info({ port }, 'HTTP server listening'));
-  logger.info('Bot started');
+  
+  // Start polling mechanism for now (until webhooks are deployed)
+  const { startDepositMonitoringLoop } = await import('./services/monitoring');
+  startDepositMonitoringLoop(bot, monitoredWallets);
+  
+  logger.info('Bot started with polling-based deposit monitoring');
 }
 
 main().catch((err) => {
