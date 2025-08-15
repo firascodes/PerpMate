@@ -3,6 +3,7 @@ import { ShineBorder } from "@/components/ui/shine-border";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function Home() {
   const handleTelegramLogin = () => {
@@ -21,7 +22,7 @@ export default function Home() {
                 alt="PerpMate Logo"
                 width={40}
                 height={40}
-                className="mr-2"
+                className="mr-2 mb-1"
               />
               <Image
                 src="/assets/PerpMate.svg"
@@ -30,19 +31,26 @@ export default function Home() {
                 height={40}
               />
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Link
+                href="/dashboard"
+                className="px-4 py-2 rounded-md text-sm font-semibold text-gray-200 hover:text-white hover:bg-gray-700 transition-colors duration-150"
+              >
+                Dashboard
+              </Link>
               <Button
                 onClick={handleTelegramLogin}
-                variant="ghost"
-                size="icon"
-                className="rounded-full focus-ring"
+                variant="default"
+                size="default"
+                className="flex items-center gap-2 rounded-md bg-white hover:bg-white/90 text-gray-900 font-bold shadow-md transition-all duration-150"
               >
                 <Image
-                  src="/assets/telegram.svg"
+                  src="/assets/telegram-2.svg"
                   alt="Telegram Logo"
-                  width={32}
-                  height={32}
+                  width={24}
+                  height={24}
                 />
+                <span className="text-sm font-semibold">Connect Wallet</span>
               </Button>
             </div>
           </div>
@@ -106,26 +114,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-      <footer className="bg-gray-800 shadow-lg mt-12">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center space-x-6">
-            <a href="#" className="text-gray-400 hover:text-white focus-ring rounded-md">
-              Docs
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white focus-ring rounded-md">
-              PRD
-            </a>
-            <a
-              href="https://t.me/PerpMateBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white focus-ring rounded-md"
-            >
-              Telegram
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
