@@ -1,0 +1,20 @@
+[phases.setup]
+  # Force Node.js 20 to satisfy Solana/hyperliquid libs
+  nixPkgs = ["nodejs_20"]
+
+[phases.install]
+  cmds = [
+    # Ensure we are in the bot workspace
+    "npm install"
+  ]
+
+[phases.build]
+  cmds = [
+    "npm run build",
+    "npm run prisma:generate"
+  ]
+
+[start]
+  cmd = "npm start"
+
+
