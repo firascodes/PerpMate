@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 import { TradeIntent } from './nlp';
 import { getUserByTelegramId } from '../db/users';
-import { initHlClients, fetchUniverse, getAssetIndexBySymbol, placeMarketOrderHL } from './hyperliquid';
+import { initHlClients, fetchUniverse, getAssetIndexBySymbol, placeMarketOrderHL, checkUserExists } from './hyperliquid';
 import { Bot } from 'grammy';
 
 export interface TradeExecution {
@@ -93,11 +93,23 @@ export async function executeTradeOrder(
   } catch (error) {
     logger.error({ error, telegramId, tradeIntent }, 'Failed to execute trade');
     
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    let userMessage = `❌ **Trade Failed**\n\n${errorMessage}`;
+    
+    // Provide specific guidance based on error type
+    if (errorMessage.includes('not activated') || errorMessage.includes('does not exist')) {
+      userMessage += `\n\n💡 **Next Steps:**\n• Use \`/fund\` to deposit USDC and activate your wallet\n• Or visit https://app.hyperliquid.xyz to activate manually`;
+    } else if (errorMessage.includes('insufficient') || errorMessage.includes('balance')) {
+      userMessage += `\n\n💡 **Next Steps:**\n• Check your balance with \`/balance\`\n• Deposit more USDC using \`/fund\``;
+    } else if (errorMessage.includes('not found')) {
+      userMessage += `\n\n💡 **Available assets:** BTC, ETH, SOL`;
+    }
+    
+    userMessage += `\n\n🔧 **Need help?** Use \`/help\` for guidance.`;
+    
     await bot.api.sendMessage(
       telegramId,
-      `❌ **Trade Failed**\n\n` +
-      `Error: ${error instanceof Error ? error.message : 'Unknown error'}\n\n` +
-      `Please check your wallet balance and try again.`,
+      userMessage,
       { parse_mode: 'Markdown' }
     );
     

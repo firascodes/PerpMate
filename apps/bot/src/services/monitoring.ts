@@ -4,6 +4,7 @@ import { Bot } from 'grammy';
 import { getUserByTelegramId } from '../db/users';
 import { getRouteQuote, executeLiFiRoute } from './lifi';
 import { getUSDCBalance, createBalanceKey } from './balance';
+import { initHlClients, checkUserExists } from './hyperliquid';
 
 // Simple in-memory tracking of last known balances
 const lastKnownBalances = new Map<string, number>();
@@ -20,12 +21,24 @@ export interface DepositEvent {
 /**
  * Start monitoring a wallet for USDC deposits
  */
-export async function startDepositMonitoring(walletAddress: string, chain: SupportedChain, telegramId: string) {
+export async function startDepositMonitoring(
+  walletAddress: string, 
+  chain: SupportedChain, 
+  telegramId: string,
+  monitoredWallets?: Map<string, { chain: SupportedChain; telegramId: string; startTime: Date }>
+) {
   const key = createBalanceKey(walletAddress, chain);
   logger.info({ walletAddress, chain, telegramId }, 'Starting deposit monitoring');
   
-  // Initialize balance tracking
-  // Note: monitoredWallets should be passed from the main bot file
+  // Add to monitored wallets if map is provided
+  if (monitoredWallets) {
+    monitoredWallets.set(walletAddress, { 
+      chain, 
+      telegramId, 
+      startTime: new Date() 
+    });
+    logger.info({ walletAddress, chain, telegramId }, 'Added wallet to monitoring map');
+  }
   
   // Get current balance as starting point
   const currentBalance = await getUSDCBalance(walletAddress, chain);
@@ -145,10 +158,15 @@ I'll notify you when it's ready for trading! 🚀`,
       { parse_mode: 'Markdown' }
     );
     
-    // Note: executeLiFiRoute implementation needed
-    // const txHash = await executeLiFiRoute(quote, user.walletAddress);
+    // Execute the Li.Fi route with Privy signing
+    const routeExecution = await executeLiFiRoute(quote, user.evmWalletId!);
     
-    logger.info({ telegramId, quote }, 'Bridge route executed');
+    if (routeExecution.success) {
+      // Auto-activate Hyperliquid account when funds arrive
+      await activateHyperliquidAccount(bot, telegramId, user.evmWalletId!, user.evmWalletAddress!);
+    }
+    
+    logger.info({ telegramId, quote, routeExecution }, 'Bridge route executed');
     
   } catch (error) {
     logger.error({ error, telegramId, deposit }, 'Failed to handle deposit');
@@ -168,16 +186,33 @@ I'll notify you when it's ready for trading! 🚀`,
  */
 export function startDepositMonitoringLoop(
   bot: Bot, 
-  monitoredWallets: Map<string, { chain: SupportedChain; telegramId: string }>
+  monitoredWallets: Map<string, { chain: SupportedChain; telegramId: string; startTime: Date }>
 ): void {
   logger.info('Starting deposit monitoring loop');
   
   setInterval(async () => {
+    logger.info({ 
+      monitoredWalletsCount: monitoredWallets.size,
+      wallets: Array.from(monitoredWallets.keys())
+    }, 'Running deposit monitoring loop');
+    
     for (const [walletAddress, info] of monitoredWallets.entries()) {
       try {
+        logger.info({ 
+          walletAddress, 
+          chain: info.chain, 
+          telegramId: info.telegramId 
+        }, 'Checking wallet for deposits');
+        
         const depositAmount = await checkForDeposits(walletAddress, info.chain);
         
         if (depositAmount) {
+          logger.info({ 
+            walletAddress, 
+            chain: info.chain, 
+            depositAmount 
+          }, 'DEPOSIT DETECTED! Processing...');
+          
           const deposit: DepositEvent = {
             walletAddress,
             chain: info.chain,
@@ -186,10 +221,63 @@ export function startDepositMonitoringLoop(
           };
           
           await handleDepositDetected(bot, info.telegramId, deposit);
+        } else {
+          logger.info({ 
+            walletAddress, 
+            chain: info.chain 
+          }, 'No new deposits detected');
         }
       } catch (error) {
         logger.error({ error, walletAddress, chain: info.chain }, 'Error in monitoring loop');
       }
     }
   }, 10000); // Check every 10 seconds
+}
+
+/**
+ * Automatically activate Hyperliquid account when funds arrive
+ */
+async function activateHyperliquidAccount(
+  bot: Bot, 
+  telegramId: string, 
+  walletId: string, 
+  walletAddress: string
+): Promise<void> {
+  try {
+    logger.info({ telegramId, walletAddress }, 'Attempting to activate Hyperliquid account');
+    
+    // Initialize Hyperliquid clients
+    const { info } = initHlClients(walletId, walletAddress);
+    
+    // Check if account is already activated
+    const isActivated = await checkUserExists(info, walletAddress, 'mainnet');
+    
+    if (isActivated) {
+      await bot.api.sendMessage(
+        telegramId,
+        `✅ **Account Already Active!**\n\nYour Hyperliquid account is ready for trading! 🚀\n\nTry: \`buy 10 btc\` or \`short eth 50 usdc\``,
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
+    
+    // For Hyperliquid, accounts are activated automatically when they receive USDC
+    // The first deposit activates the account - no manual activation needed
+    await bot.api.sendMessage(
+      telegramId,
+      `🎯 **Hyperliquid Account Activated!**\n\nYour account is now ready for perpetual trading!\n\n🚀 **Ready to trade:**\n• \`buy 10 btc\`\n• \`short eth 100 usdc\`\n• \`long sol with 3x leverage\`\n\nUse /active to check positions anytime! 📊`,
+      { parse_mode: 'Markdown' }
+    );
+    
+    logger.info({ telegramId, walletAddress }, 'Hyperliquid account activation completed');
+    
+  } catch (error) {
+    logger.error({ error, telegramId, walletAddress }, 'Failed to activate Hyperliquid account');
+    
+    await bot.api.sendMessage(
+      telegramId,
+      `⚠️ **Account Activation Pending**\n\nFunds bridged successfully, but account activation is still processing.\n\nTry trading in a few minutes or visit https://app.hyperliquid.xyz`,
+      { parse_mode: 'Markdown' }
+    );
+  }
 }

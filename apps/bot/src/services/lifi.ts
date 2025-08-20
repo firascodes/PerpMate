@@ -41,12 +41,35 @@ export async function getRouteQuote(
       'base': 8453, // Base mainnet
     };
     
+    // Detect destination chain from address format
+    const getDestinationChain = (address: string): number => {
+      // Solana addresses are base58 encoded, 32-44 characters
+      if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+        return 1151111081099710; // Solana
+      }
+      // EVM addresses start with 0x and are 42 characters
+      else if (/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        return 42161; // Arbitrum (HyperEVM) for EVM addresses
+      } else {
+        throw new Error(`Invalid destination address format: ${address}`);
+      }
+    };
+    
+    const destinationChain = getDestinationChain(toAddress);
+    
+    logger.info({ 
+      sourceChain, 
+      destinationChain, 
+      fromAddress: fromAddress.slice(0, 8) + '...', 
+      toAddress: toAddress.slice(0, 8) + '...' 
+    }, 'Routing parameters');
+    
     const quote = await lifiGetQuote({
       fromAddress,
       fromChain: chainMap[sourceChain],
       fromToken: 'USDC', // USDC symbol
       fromAmount: (amount * 1e6).toString(), // USDC has 6 decimals
-      toChain: 42161, // Arbitrum (HyperEVM)
+      toChain: destinationChain,
       toToken: 'USDC',
       toAddress,
       slippage: 0.03, // 3% slippage tolerance
@@ -70,30 +93,78 @@ export type LifiQuoteParams = {
   recipient?: string;
 };
 
+export interface RouteExecutionResult {
+  success: boolean;
+  txHash?: string;
+  error?: string;
+}
+
 /**
  * Execute a Li.Fi route (bridge transaction)
- * Note: This is a placeholder - actual implementation depends on signing infrastructure
  */
-export async function executeLiFiRoute(route: any, fromAddress: string): Promise<string | null> {
+export async function executeLiFiRoute(route: any, walletId: string): Promise<RouteExecutionResult> {
   try {
-    logger.info({ route, fromAddress }, 'Executing Li.Fi route');
+    logger.info({ routeId: route.id, walletId }, 'Executing Li.Fi route');
     
-    // TODO: Implement actual route execution with Privy signer
-    // This would involve:
-    // 1. Getting Privy session signer for the user
-    // 2. Signing the transaction with proper gas estimation
-    // 3. Broadcasting to the source chain
-    // 4. Monitoring execution status
+    // Import Privy client for signing
+    const { PrivyClient } = await import('@privy-io/server-auth');
+    const privyClient = new PrivyClient(
+      process.env.PRIVY_APP_ID!,
+      process.env.PRIVY_APP_SECRET!
+    );
     
-    // For now, return a mock transaction hash
-    const mockTxHash = `0x${Math.random().toString(16).slice(2, 66)}`;
+    // Get Privy signer for this wallet
+    const signer = await (privyClient as any).walletApi.createEthersSigner({ 
+      walletId,
+      chainId: route.fromChainId 
+    });
     
-    logger.info({ mockTxHash, fromAddress }, 'Li.Fi route execution started (mock)');
-    return mockTxHash;
+    if (!signer) {
+      throw new Error('Failed to create Privy signer');
+    }
+    
+    // Execute the Li.Fi route transaction
+    const transactionRequest = route.transactionRequest;
+    
+    // Estimate gas and execute
+    const gasEstimate = await signer.estimateGas(transactionRequest);
+    const gasPrice = await signer.getGasPrice();
+    
+    const txResponse = await signer.sendTransaction({
+      ...transactionRequest,
+      gasLimit: gasEstimate,
+      gasPrice: gasPrice,
+    });
+    
+    logger.info({ 
+      txHash: txResponse.hash, 
+      walletId,
+      routeId: route.id 
+    }, 'Li.Fi route transaction submitted');
+    
+    // Wait for confirmation
+    const receipt = await txResponse.wait(1);
+    
+    if (receipt.status === 1) {
+      logger.info({ 
+        txHash: receipt.transactionHash, 
+        blockNumber: receipt.blockNumber 
+      }, 'Li.Fi route execution successful');
+      
+      return {
+        success: true,
+        txHash: receipt.transactionHash
+      };
+    } else {
+      throw new Error('Transaction failed');
+    }
     
   } catch (error) {
-    logger.error({ error, route, fromAddress }, 'Failed to execute Li.Fi route');
-    return null;
+    logger.error({ error, routeId: route?.id, walletId }, 'Failed to execute Li.Fi route');
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 }
 

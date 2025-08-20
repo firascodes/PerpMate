@@ -17,18 +17,19 @@ export async function handleHelp(ctx: Context) {
   const msg = `🤖 **PerpMate Bot Help**${testnetNote}
 
 **💼 Account Management:**
-• \`/start\` - Create your account & multi-chain wallets
-• \`/wallet\` - View your Solana & EVM wallet addresses
-• \`/balance\` - Check USDC balances on all chains${isTestnet ? '\n• `/faucet` - Get testnet USDC for testing' : ''}
+• [/start](/start) - Create your account & multi-chain wallets
+• [/wallet](/wallet) - View your Solana & EVM wallet addresses
+• [/balance](/balance) - Check USDC balances on all chains${isTestnet ? '\n• [/faucet](/faucet) - Get testnet USDC for testing' : ''}
 
 **💰 Funding & Withdrawals:**
-• \`/fund\` - Deposit USDC from Solana/Base to bot
-• \`/withdraw\` - Send USDC from bot to external address
+• [/fund](/fund) - Deposit USDC from Solana/Base to bot
+• [/withdraw](/withdraw) - Send USDC from bot to external address
 
 **📈 Trading:**
-• \`/execute\` - Place a trade (e.g., \`/execute BTC buy 50 3\`)
-• \`/active\` - View your open positions & P&L
-• \`/preview\` - Preview pending route/trade details
+• [/execute](/execute) - Place a trade (e.g., /execute BTC buy 50 3)
+• [/active](/active) - View your open positions & P&L
+• [/activate](/activate) - Activate your Hyperliquid trading account
+• [/preview](/preview) - Preview pending route/trade details
 
 **🤖 Natural Language Trading:**
 Just type what you want to trade!
@@ -38,13 +39,12 @@ Just type what you want to trade!
 • "long 50 dollars of bitcoin"
 
 **ℹ️ Other:**
-• \`/help\` - Show this help menu
-• \`/login\` - Get dashboard login link
+• [/help](/help) - Show this help menu
+• [/login](/login) - Get dashboard login link
 
-**Quick Actions:**`;
+`;
 
   await ctx.reply(msg, {
-    reply_markup: kb,
     parse_mode: 'Markdown',
   });
 }

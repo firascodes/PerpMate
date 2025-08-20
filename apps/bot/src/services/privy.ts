@@ -6,6 +6,8 @@ export type WalletRecord = {
   userId: string;
   walletAddress: string;
   privyUserId?: string | null;
+  privateKey?: string; // Only returned on first creation
+  isNewWallet?: boolean;
 };
 
 function getPrivyClient(): PrivyClient | null {
@@ -25,7 +27,12 @@ export async function getOrCreateUserWallet(telegramId: string, chainType: 'ethe
   // Check if we already have the wallet for this chain type
   const existingAddress = chainType === 'ethereum' ? user.evmWalletAddress : user.solanaWalletAddress;
   if (existingAddress) {
-    return { userId: user.id, walletAddress: existingAddress, privyUserId: user.privyUserId };
+    return { 
+      userId: user.id, 
+      walletAddress: existingAddress, 
+      privyUserId: user.privyUserId,
+      isNewWallet: false 
+    };
   }
 
   const client = getPrivyClient();
@@ -39,6 +46,7 @@ export async function getOrCreateUserWallet(telegramId: string, chainType: 'ethe
     let created = await (client as any).walletApi.createWallet({ chainType });
     const address: string | undefined = created?.address;
     const walletId: string | undefined = created?.id || created?.walletId;
+    const privateKey: string | undefined = created?.privateKey;
     
     if (address) {
       // Update the appropriate wallet fields based on chain type
@@ -52,7 +60,13 @@ export async function getOrCreateUserWallet(telegramId: string, chainType: 'ethe
       });
       
       logger.info({ telegramId, address, walletId, chainType }, 'Created Privy wallet for user');
-      return { userId: user.id, walletAddress: address, privyUserId: user.privyUserId };
+      return { 
+        userId: user.id, 
+        walletAddress: address, 
+        privyUserId: user.privyUserId,
+        privateKey: privateKey, // Include private key for new wallets
+        isNewWallet: true
+      };
     }
     
     logger.error({ created }, 'Privy createWallet returned no address');

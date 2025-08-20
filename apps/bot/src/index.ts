@@ -6,13 +6,13 @@ import { rateLimitMiddleware } from './middleware/rateLimit';
 import { handleStart } from './commands/start';
 import { handleHelp } from './commands/help';
 import { handleWallet } from './commands/wallet';
-import { handleFund, handleDepositAddress } from './commands/fund';
+import { handleFund, handleDepositAddress, setMonitoredWalletsMap } from './commands/fund';
 import { handlePreview } from './commands/preview';
 import { handleExecute } from './commands/execute';
 import { handleActive } from './commands/active';
 import { handleLogin } from './commands/login';
 import { handleBalance } from './commands/balance';
-import { handleFaucet, handleFaucetRequest } from './commands/faucet';
+import { handleFaucet, handleExternalFaucetGuide } from './commands/faucet';
 import { 
   handleWithdraw, 
   handleWithdrawChainSelection, 
@@ -54,6 +54,53 @@ bot.command('login', handleLogin);
 bot.command('balance', handleBalance);
 bot.command('withdraw', handleWithdraw);
 bot.command('faucet', handleFaucet);
+bot.command('checkdeposits', async (ctx) => {
+  const telegramId = String(ctx.from?.id);
+  await ctx.reply('🔍 Manually checking for deposits...');
+  
+  for (const [walletAddress, info] of monitoredWallets.entries()) {
+    if (info.telegramId === telegramId) {
+      const { checkForDeposits, handleDepositDetected } = await import('./services/monitoring');
+      const depositAmount = await checkForDeposits(walletAddress, info.chain);
+      
+      if (depositAmount) {
+        await handleDepositDetected(bot, telegramId, {
+          walletAddress,
+          chain: info.chain,
+          amount: depositAmount,
+          timestamp: new Date(),
+        });
+        await ctx.reply(`✅ Found deposit: ${depositAmount} USDC on ${info.chain}`);
+      } else {
+        await ctx.reply(`ℹ️ No new deposits found on ${info.chain}`);
+      }
+    }
+  }
+});
+
+bot.command('activate', async (ctx) => {
+  const telegramId = String(ctx.from?.id);
+  await ctx.reply('🎯 Activating Hyperliquid account...');
+  
+  try {
+    const user = await getUserByTelegramId(telegramId);
+    if (!user?.evmWalletId || !user?.evmWalletAddress) {
+      return ctx.reply('❌ EVM wallet not found. Use /wallet first.');
+    }
+    
+    const { activateHyperliquidAccount } = await import('./services/hyperliquid');
+    const activated = await activateHyperliquidAccount(user.evmWalletId, user.evmWalletAddress);
+    
+    if (activated) {
+      await ctx.reply('✅ **Hyperliquid Account Activated!**\n\nYou can now start trading. Try: `buy 10 btc`', { parse_mode: 'Markdown' });
+    } else {
+      await ctx.reply('⚠️ **Activation Failed**\n\nMake sure you have USDC in your wallet. Use /fund to deposit.', { parse_mode: 'Markdown' });
+    }
+  } catch (error) {
+    logger.error({ error, telegramId }, 'Failed to activate Hyperliquid account');
+    await ctx.reply('❌ Activation failed. Please try again.');
+  }
+});
 
 // Inline button callbacks (help)
 bot.callbackQuery('help_wallet', async (ctx) => ctx.answerCallbackQuery({ text: 'Use /wallet to view/create your wallet.' }));
@@ -101,13 +148,9 @@ bot.callbackQuery('cancel_trade', async (ctx) => {
   await ctx.reply('❌ Trade cancelled.');
 });
 
-// Faucet callbacks
-bot.callbackQuery('faucet_solana', async (ctx) => {
-  await handleFaucetRequest(ctx, 'solana');
-});
-
-bot.callbackQuery('faucet_base', async (ctx) => {
-  await handleFaucetRequest(ctx, 'base');
+// Faucet callbacks (external only)
+bot.callbackQuery('faucet_external', async (ctx) => {
+  await handleExternalFaucetGuide(ctx);
 });
 
 // Withdraw callbacks
@@ -125,6 +168,17 @@ bot.callbackQuery('withdraw_confirm', async (ctx) => {
 
 bot.callbackQuery('withdraw_cancel', async (ctx) => {
   await handleWithdrawCancel(ctx);
+});
+
+// Handle wallet callbacks
+bot.callbackQuery('export_keys', async (ctx) => {
+  await ctx.answerCallbackQuery({ text: 'Private key export feature coming soon!' });
+  await ctx.reply('🔧 **Export Feature Coming Soon**\n\nFor now, please save the private keys shown above manually.');
+});
+
+bot.callbackQuery('refresh_wallets', async (ctx) => {
+  await ctx.answerCallbackQuery({ text: 'Refreshing wallets...' });
+  await handleWallet(ctx);
 });
 
 // Natural language trading and withdraw handler
@@ -174,12 +228,12 @@ bot.on('message:text', async (ctx) => {
       pendingCommands.set(telegramId, 'trade');
       pendingTrades.set(telegramId, tradeIntent);
       
-    } else if (tradeIntent.confidence > 0.1) {
-      // Partial match - suggest corrections
+    } else if (tradeIntent.confidence > 0.05) {
+      // Partial match or general guidance - suggest corrections
       const suggestion = suggestCorrection(tradeIntent);
       await ctx.reply(suggestion, { parse_mode: 'Markdown' });
     }
-    // If confidence is very low, ignore (might be casual conversation)
+    // If confidence is very low (< 0.05), ignore (casual conversation)
     
   } catch (error) {
     logger.error({ error, text, telegramId }, 'Error processing natural language command');
@@ -221,6 +275,10 @@ setupWebhookRoutes(app, bot);
 
 async function main() {
   const port = Number(process.env.PORT || 8080);
+  
+  // Set up monitored wallets map for fund command
+  setMonitoredWalletsMap(monitoredWallets);
+  
   await bot.start();
   app.listen(port, () => logger.info({ port }, 'HTTP server listening'));
   

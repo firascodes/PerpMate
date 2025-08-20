@@ -4,6 +4,13 @@ import { getDepositInfo, formatDepositInstructions } from '../services/deposits'
 import { startDepositMonitoring } from '../services/monitoring';
 import { logger } from '../logger';
 
+// We'll need to pass the monitoredWallets map from the main bot
+let globalMonitoredWallets: Map<string, { chain: 'solana' | 'base'; telegramId: string; startTime: Date }> | null = null;
+
+export function setMonitoredWalletsMap(map: Map<string, { chain: 'solana' | 'base'; telegramId: string; startTime: Date }>) {
+  globalMonitoredWallets = map;
+}
+
 export async function handleFund(ctx: Context) {
   const isConnected = await checkLiFiConnectivity();
   
@@ -35,12 +42,11 @@ export async function handleDepositAddress(ctx: Context, chain: 'solana' | 'base
     const instructions = formatDepositInstructions(depositInfo);
     
     await ctx.reply(instructions, { 
-      parse_mode: 'Markdown',
-      disable_web_page_preview: true 
+      parse_mode: 'Markdown'
     });
     
     // Start monitoring for deposits
-    await startDepositMonitoring(depositInfo.walletAddress, chain, telegramId);
+    await startDepositMonitoring(depositInfo.walletAddress, chain, telegramId, globalMonitoredWallets || undefined);
     logger.info({ telegramId, chain, walletAddress: depositInfo.walletAddress }, 'Deposit address provided, monitoring started');
     
   } catch (error) {

@@ -1,6 +1,7 @@
 import { logger } from '../logger';
 import { USDC_ADDRESSES, SupportedChain } from './deposits';
 import { getConfig, isTestnetMode } from '../config/testnet';
+import { ethers } from 'ethers';
 
 // In-memory testnet balance storage (for demo)
 const testnetBalances = new Map<string, number>();
@@ -67,50 +68,105 @@ export function addTestnetBalance(walletAddress: string, chain: SupportedChain, 
  */
 async function getSolanaUSDCBalance(walletAddress: string): Promise<number> {
   try {
-    const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
-    const USDC_MINT = USDC_ADDRESSES.solana; // EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-    
-    // Get token accounts by owner
-    const response = await fetch(SOLANA_RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getTokenAccountsByOwner',
-        params: [
-          walletAddress,
-          { mint: USDC_MINT },
-          { encoding: 'jsonParsed' }
-        ]
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      logger.warn({ error: data.error, walletAddress }, 'Solana RPC error');
-      return 0;
+    const config = getConfig();
+
+    // Build candidate RPC/mint pairs and run in parallel
+    const candidates: Array<{ rpc: string; mint: string; label: string }> = [];
+    const pushUnique = (rpc: string, mint: string, label: string) => {
+      const exists = candidates.some((c) => c.rpc === rpc && c.mint === mint);
+      if (!exists) candidates.push({ rpc, mint, label });
+    };
+    pushUnique(config.SOLANA_RPC_URL, config.USDC_ADDRESSES.solana, 'configured');
+    pushUnique('https://api.devnet.solana.com', 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr', 'devnet');
+    pushUnique('https://api.mainnet-beta.solana.com', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'mainnet');
+
+    const tokenProgramId = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+
+    const queryOne = async (rpcUrl: string, usdcMint: string) => {
+      // Try by mint
+      const byMintRes = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getTokenAccountsByOwner',
+          params: [walletAddress, { mint: usdcMint }, { encoding: 'jsonParsed' }],
+        }),
+      });
+      let data = await byMintRes.json();
+
+      // Fallback by programId if mint query errors
+      if (data?.error) {
+        const byProgramRes = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getTokenAccountsByOwner',
+            params: [walletAddress, { programId: tokenProgramId }, { encoding: 'jsonParsed' }],
+          }),
+        });
+        data = await byProgramRes.json();
+      }
+
+      const tokenAccounts = data?.result?.value || [];
+      let total = 0;
+      for (const account of tokenAccounts) {
+        const parsed = account.account?.data?.parsed?.info;
+        const mint: string | undefined = parsed?.mint;
+        if (mint !== usdcMint) continue;
+        total += parsed?.tokenAmount?.uiAmount || 0;
+      }
+
+      // Fallback: if zero, try if wallet is the token account
+      if (total === 0) {
+        try {
+          const accountInfoRes = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'getAccountInfo',
+              params: [walletAddress, { encoding: 'jsonParsed' }],
+            }),
+          });
+          const acc = await accountInfoRes.json();
+          const parsed = acc?.result?.value?.data?.parsed;
+          const info = parsed?.info;
+          if (info?.mint === usdcMint) {
+            total = info?.tokenAmount?.uiAmount || 0;
+          }
+        } catch {}
+      }
+
+      return total;
+    };
+
+    const results = await Promise.allSettled(
+      candidates.map((c) => queryOne(c.rpc, c.mint))
+    );
+
+    let best = 0;
+    for (const r of results) {
+      if (r.status === 'fulfilled') best = Math.max(best, Number(r.value || 0));
     }
-    
-    const tokenAccounts = data.result?.value || [];
-    if (tokenAccounts.length === 0) {
-      // No USDC token account exists yet
-      return 0;
-    }
-    
-    // Sum balances from all USDC token accounts
-    let totalBalance = 0;
-    for (const account of tokenAccounts) {
-      const balance = account.account?.data?.parsed?.info?.tokenAmount?.uiAmount || 0;
-      totalBalance += balance;
-    }
-    
-    logger.info({ walletAddress, totalBalance, accounts: tokenAccounts.length }, 'Solana USDC balance checked');
-    return totalBalance;
-    
+
+    logger.info({ walletAddress, totalBalance: best }, 'Solana USDC balance checked');
+    return best;
+
   } catch (error) {
-    logger.error({ error, walletAddress }, 'Failed to check Solana USDC balance');
+    logger.error(
+      {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        error,
+        walletAddress,
+      },
+      'Failed to check Solana USDC balance'
+    );
     return 0;
   }
 }
@@ -120,48 +176,47 @@ async function getSolanaUSDCBalance(walletAddress: string): Promise<number> {
  */
 async function getBaseUSDCBalance(walletAddress: string): Promise<number> {
   try {
-    const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
-    const USDC_CONTRACT = USDC_ADDRESSES.base; // 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
-    
-    // ERC-20 balanceOf function signature
-    const balanceOfSignature = '0x70a08231'; // balanceOf(address)
-    const paddedAddress = walletAddress.slice(2).padStart(64, '0'); // Remove 0x and pad to 32 bytes
-    
-    const response = await fetch(BASE_RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_call',
-        params: [
-          {
-            to: USDC_CONTRACT,
-            data: balanceOfSignature + paddedAddress
-          },
-          'latest'
-        ]
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      logger.warn({ error: data.error, walletAddress }, 'Base RPC error');
-      return 0;
+    const config = getConfig();
+    const provider = new ethers.JsonRpcProvider(config.BASE_RPC_URL);
+
+    const erc20Abi = ['function balanceOf(address owner) view returns (uint256)'];
+    const baseMainnetUSDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+    const baseSepoliaUSDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+
+    const candidates = Array.from(
+      new Set([
+        config.USDC_ADDRESSES.base,
+        baseMainnetUSDC,
+        baseSepoliaUSDC,
+      ].map((a) => a.toLowerCase()))
+    ).map((lc) => [lc, [config.USDC_ADDRESSES.base, baseMainnetUSDC, baseSepoliaUSDC].find((a) => a.toLowerCase() === lc)!][1]);
+
+    for (const candidate of candidates) {
+      try {
+        const code = await provider.getCode(candidate);
+        if (!code || code === '0x') continue;
+        const contract = new ethers.Contract(candidate, erc20Abi, provider);
+        const balanceWei: bigint = await contract.balanceOf(walletAddress);
+        const balance = Number(balanceWei) / 1e6;
+        logger.info({ walletAddress, balance, contract: candidate }, 'Base USDC balance checked');
+        return balance;
+      } catch (innerError) {
+        continue;
+      }
     }
-    
-    const balanceHex = data.result || '0x0';
-    const balanceWei = BigInt(balanceHex);
-    
-    // USDC has 6 decimals
-    const balance = Number(balanceWei) / 1e6;
-    
-    logger.info({ walletAddress, balance }, 'Base USDC balance checked');
-    return balance;
-    
+
+    logger.warn({ walletAddress, candidates }, 'Unable to query Base USDC balance');
+    return 0;
   } catch (error) {
-    logger.error({ error, walletAddress }, 'Failed to check Base USDC balance');
+    logger.error(
+      {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        error,
+        walletAddress,
+      },
+      'Failed to check Base USDC balance'
+    );
     return 0;
   }
 }
