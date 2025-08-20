@@ -1,7 +1,3 @@
-[phases.setup]
-  # Force Node.js 24 to satisfy Solana/hyperliquid libs
-  nixPkgs = ["nodejs_24"]
-
 [phases.install]
   cmds = [
     # Ensure we are in the bot workspace
