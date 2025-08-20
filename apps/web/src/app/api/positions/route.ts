@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       where: { telegramId: String(telegramId) },
     });
 
-    if (!user || !user.walletAddress) {
+    if (!user || !user.evmWalletAddress) {
       return NextResponse.json(
         { error: "User or wallet not found" },
         { status: 404 },
@@ -29,7 +29,9 @@ export async function GET(req: NextRequest) {
     }
 
     const info = new InfoClient({ transport: new HttpTransport() });
-    const userState = await info.userState(user.walletAddress);
+    const userState = await info.clearinghouseState({
+      user: user.evmWalletAddress as `0x${string}`,
+    });
     const positions = userState.assetPositions;
 
     return NextResponse.json({ positions });
