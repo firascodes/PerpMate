@@ -1,0 +1,16 @@
+[build]
+# Build directly without Docker to avoid workspace issues
+buildCommand = "cd apps/bot && npm install && npm run build && npm run prisma:generate"
+
+[deploy]
+# Start the bot
+startCommand = "cd apps/bot && npm start"
+# Health check configuration
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[environments.production]
+# Production environment variables
+NODE_ENV = "production"
