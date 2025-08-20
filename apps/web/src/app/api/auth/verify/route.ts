@@ -29,7 +29,9 @@ export async function GET(req: NextRequest) {
       username: loginToken.user.telegramId, // Placeholder
     };
 
-    cookies().set("session", JSON.stringify(sessionData), {
+    // Create redirect response and set cookie on it (route handlers expose Response cookies)
+    const res = NextResponse.redirect(new URL("/dashboard", req.url));
+    res.cookies.set("session", JSON.stringify(sessionData), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24, // 1 day
@@ -39,8 +41,8 @@ export async function GET(req: NextRequest) {
     // Delete the token to prevent reuse
     await prisma.loginToken.delete({ where: { id: loginToken.id } });
 
-    // Redirect to the dashboard
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    // Return response with cookie
+    return res;
   } catch (error) {
     console.error("Token verification error:", error);
     return NextResponse.json(
