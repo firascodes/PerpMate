@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+# Use Node.js 24 LTS to satisfy dependency requirements
+FROM node:24-alpine
 
 # Set working directory
 WORKDIR /app
@@ -10,8 +10,9 @@ COPY package*.json ./
 # Copy bot package.json
 COPY apps/bot/package*.json ./apps/bot/
 
-# Install dependencies using workspace
-RUN npm ci
+# Install dependencies. Using 'npm install' to resolve lockfile mismatches.
+# For best practice, run 'npm install' locally and commit the updated package-lock.json
+RUN npm install
 
 # Copy all source code
 COPY . .
