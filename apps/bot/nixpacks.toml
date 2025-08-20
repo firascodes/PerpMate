@@ -1,6 +1,6 @@
 [phases.setup]
-  # Force Node.js 20 to satisfy Solana/hyperliquid libs
-  nixPkgs = ["nodejs_20"]
+  # Force Node.js 24 to satisfy Solana/hyperliquid libs
+  nixPkgs = ["nodejs_24"]
 
 [phases.install]
   cmds = [
@@ -16,5 +16,3 @@
 
 [start]
   cmd = "npm start"
-
-
