@@ -42,20 +42,17 @@ model LoginToken {
 }
 
 model Signal {
-    id          String   @id @default(cuid())
-    asset       String
-    timeframe   String
-    side        String
-    entry       Decimal  @db.Decimal(38, 18)
-    sl          Decimal  @db.Decimal(38, 18)
-    tp          Decimal  @db.Decimal(38, 18)
-    notionalUsd Decimal  @db.Decimal(38, 2)
-    leverage    Int
-    score       Int
-    features    Json
-    explanation String?
-    status      String   @default("sent")
-    createdAt   DateTime @default(now())
+    id           String   @id @default(cuid())
+    asset        String   // BTC, ETH, SOL
+    action       String   // buy, sell, hold
+    confidence   Int      // 0-100
+    reasoning    Json     // Array of reasoning strings
+    rsi          Decimal  @db.Decimal(5, 2)  // RSI value
+    volumeRatio  Decimal  @db.Decimal(5, 2)  // Volume ratio
+    fundingRate  Decimal  @db.Decimal(8, 4)  // Funding rate percentage
+    status       String   @default("sent")   // sent, analyzed, archived
+    broadcastTo  Int      @default(0)        // Number of users broadcasted to
+    createdAt    DateTime @default(now())
 }
 
 model Trade {
