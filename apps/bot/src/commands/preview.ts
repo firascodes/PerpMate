@@ -20,12 +20,12 @@ export async function handlePreview(ctx: Context) {
     });
 
     if (!latestIntent) {
-      return ctx.reply('🔍 **Route Preview**\n\nNo pending deposits found.\nUse /fund to set up a deposit first.');
+      return ctx.reply('🔍 *Route Preview*\n\nNo pending deposits found.\nUse /fund to set up a deposit first.');
     }
 
     // For MVP, show intent details without actual quote (needs fromAddress)
     await ctx.reply(
-      `🔍 **Route Preview**\n\n` +
+      `🔍 *Route Preview*\n\n` +
       `💰 Amount: ${latestIntent.amount} ${latestIntent.token}\n` +
       `📤 From: ${latestIntent.sourceChain.toUpperCase()}\n` +
       `📥 To: Hyperliquid (Arbitrum)\n` +

@@ -25,15 +25,15 @@ export async function handleFaucet(ctx: Context) {
       .text('🌐 External Faucets Guide', 'faucet_external');
 
     await ctx.reply(
-      `🚰 **Testnet Faucet**
+      `🚰 *Testnet Faucet*
 
-🧪 **TESTNET MODE ACTIVE**
+🧪 *TESTNET MODE ACTIVE*
 
-**Your Testnet Wallets:**
-🟣 **Solana:** \`${user.solanaWalletAddress || 'Not created'}\`
-🔵 **Base:** \`${user.evmWalletAddress || 'Not created'}\`
+*Your Testnet Wallets:*
+🟣 *Solana:* \`${user.solanaWalletAddress || 'Not created'}\`
+🔵 *Base:* \`${user.evmWalletAddress || 'Not created'}\`
 
-**⚠️ Use external faucets to get REAL testnet USDC:**`,
+*⚠️ Use external faucets to get REAL testnet USDC:*`,
       {
         reply_markup: keyboard,
         parse_mode: 'Markdown',
@@ -73,7 +73,7 @@ export async function handleFaucetRequest(ctx: Context, chain: 'solana' | 'base'
       const chainName = chain === 'solana' ? 'Solana' : 'Base';
       
       await ctx.reply(
-        `✅ **Faucet Success!**\n\n${chainEmoji} **${result.amount} testnet USDC** sent to your ${chainName} wallet\n\n🧪 **Tx Hash:** \`${result.txHash}\`\n\n💡 Use /balance to check your balance`,
+        `✅ *Faucet Success!*\n\n${chainEmoji} *${result.amount} testnet USDC* sent to your ${chainName} wallet\n\n🧪 *Tx Hash:* \`${result.txHash}\`\n\n💡 Use /balance to check your balance`,
         { parse_mode: 'Markdown' }
       );
     } else {
@@ -98,31 +98,31 @@ export async function handleExternalFaucetGuide(ctx: Context) {
     }
 
     await ctx.reply(
-      `🌐 **External Testnet Faucets**
+      `🌐 *External Testnet Faucets*
 
-**🟣 Solana Devnet USDC Faucets:**
+*🟣 Solana Devnet USDC Faucets:*
 • [Circle USDC Faucet](https://usdcfaucet.com) - Real testnet USDC
 • [Solana Cookbook Faucet](https://spl-token-faucet.com/?token-name=USDC-Dev) - SPL USDC
 • [QuickNode Faucet](https://faucet.quicknode.com/solana/devnet) - Multi-token faucet
 • [Sol Faucet](https://solfaucet.com) - For SOL (transaction fees)
 • [Solana Official](https://faucet.solana.com) - For SOL (transaction fees)
 
-**🔵 Base Sepolia Faucets:**
+*🔵 Base Sepolia Faucets:*
 • [Base Faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet) - Official Base faucet
 • [Alchemy Faucet](https://sepoliafaucet.com) - Sepolia ETH (for gas)
 • [Chainlink Faucet](https://faucets.chain.link/base-sepolia) - Base Sepolia ETH
 
-**📋 Your Wallet Addresses:**
-🟣 **Solana:** \`${user.solanaWalletAddress || 'Not created'}\`
-🔵 **Base:** \`${user.evmWalletAddress || 'Not created'}\`
+*📋 Your Wallet Addresses:*
+🟣 *Solana:* \`${user.solanaWalletAddress || 'Not created'}\`
+🔵 *Base:* \`${user.evmWalletAddress || 'Not created'}\`
 
-**🎯 For Hackathon Demo:**
+*🎯 For Hackathon Demo:*
 1. Get SOL from Solana faucet for transaction fees
 2. Get testnet USDC from USDC faucets
 3. Get Base Sepolia ETH for gas fees
 4. Use our bot's /faucet for additional testnet USDC
 
-**⚠️ Important:** Save these addresses - you'll need them for faucet requests!`,
+*⚠️ Important:* Save these addresses - you'll need them for faucet requests!`,
       { parse_mode: 'Markdown' }
     );
 

@@ -1,6 +1,7 @@
 import { prisma } from '../db/client';
 import { logger } from '../logger';
 import { PrivyClient } from '@privy-io/server-auth';
+import { autoFundNewSolanaWallet } from './solanaGasFunding';
 
 export type WalletRecord = {
   userId: string;
@@ -60,6 +61,15 @@ export async function getOrCreateUserWallet(telegramId: string, chainType: 'ethe
       });
       
       logger.info({ telegramId, address, walletId, chainType }, 'Created Privy wallet for user');
+      
+      // Auto-fund Solana wallets with gas
+      if (chainType === 'solana') {
+        // Don't await this to avoid blocking the response
+        autoFundNewSolanaWallet(address).catch(error => {
+          logger.error({ error, address }, 'Failed to auto-fund new Solana wallet');
+        });
+      }
+      
       return { 
         userId: user.id, 
         walletAddress: address, 

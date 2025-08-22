@@ -23,7 +23,7 @@ export async function handleFund(ctx: Context) {
     .text('🔵 Base', 'deposit_base');
 
   await ctx.reply(
-    `💰 **Deposit USDC**\n\nSelect source chain to get your deposit address:`,
+    `💰 *Deposit USDC*\n\nSelect source chain to get your deposit address:`,
     {
       reply_markup: keyboard,
       parse_mode: 'Markdown',

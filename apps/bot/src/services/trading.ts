@@ -54,7 +54,7 @@ export async function executeTradeOrder(
     // Place market order
     await bot.api.sendMessage(
       telegramId,
-      `⏳ **Placing ${tradeIntent.action.toUpperCase()} order...**\n\n` +
+      `⏳ *Placing ${tradeIntent.action.toUpperCase()} order...*\n\n` +
       `Asset: ${tradeIntent.asset}\n` +
       `Size: $${sizeWithLeverage} (${leverage}x leverage)\n` +
       `Type: Market Order`,
@@ -75,7 +75,7 @@ export async function executeTradeOrder(
     // Send success notification
     await bot.api.sendMessage(
       telegramId,
-      `✅ **Trade Executed Successfully!**\n\n` +
+      `✅ *Trade Executed Successfully!*\n\n` +
       `📈 ${tradeIntent.action.toUpperCase()} ${tradeIntent.asset}\n` +
       `💰 Size: $${sizeWithLeverage}\n` +
       `📊 Leverage: ${leverage}x\n` +
@@ -94,18 +94,18 @@ export async function executeTradeOrder(
     logger.error({ error, telegramId, tradeIntent }, 'Failed to execute trade');
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    let userMessage = `❌ **Trade Failed**\n\n${errorMessage}`;
+    let userMessage = `❌ *Trade Failed*\n\n${errorMessage}`;
     
     // Provide specific guidance based on error type
     if (errorMessage.includes('not activated') || errorMessage.includes('does not exist')) {
-      userMessage += `\n\n💡 **Next Steps:**\n• Use \`/fund\` to deposit USDC and activate your wallet\n• Or visit https://app.hyperliquid.xyz to activate manually`;
+      userMessage += `\n\n💡 *Next Steps:*\n• Use \`/fund\` to deposit USDC and activate your wallet\n• Or visit https://app.hyperliquid.xyz to activate manually`;
     } else if (errorMessage.includes('insufficient') || errorMessage.includes('balance')) {
-      userMessage += `\n\n💡 **Next Steps:**\n• Check your balance with \`/balance\`\n• Deposit more USDC using \`/fund\``;
+      userMessage += `\n\n💡 *Next Steps:*\n• Check your balance with \`/balance\`\n• Deposit more USDC using \`/fund\``;
     } else if (errorMessage.includes('not found')) {
       userMessage += `\n\n💡 **Available assets:** BTC, ETH, SOL`;
     }
     
-    userMessage += `\n\n🔧 **Need help?** Use \`/help\` for guidance.`;
+    userMessage += `\n\n🔧 *Need help?* Use \`/help\` for guidance.`;
     
     await bot.api.sendMessage(
       telegramId,
@@ -145,10 +145,10 @@ export async function getUserPositions(telegramId: string): Promise<any> {
  */
 export function formatPositionsMessage(positions: any): string {
   if (!positions || !positions.assetPositions || positions.assetPositions.length === 0) {
-    return '📊 **No Active Positions**\n\nYou have no open positions. Use natural language to place a trade:\n\n• `buy 50 btc`\n• `short eth 100 usdc`';
+    return '📊 *No Active Positions*\n\nYou have no open positions. Use natural language to place a trade:\n\n• `buy 50 btc`\n• `short eth 100 usdc`';
   }
   
-  let message = '📊 **Your Active Positions**\n\n';
+  let message = '📊 *Your Active Positions*\n\n';
   
   for (const pos of positions.assetPositions) {
     const asset = pos.position?.coin || 'Unknown';
@@ -159,7 +159,7 @@ export function formatPositionsMessage(positions: any): string {
     const sizeAbs = Math.abs(size);
     const pnlEmoji = unrealizedPnl >= 0 ? '🟢' : '🔴';
     
-    message += `**${asset}** ${side}\n`;
+    message += `*${asset}* ${side}\n`;
     message += `• Size: ${sizeAbs.toFixed(4)}\n`;
     message += `• Entry: $${entryPx.toFixed(2)}\n`;
     message += `• PnL: ${pnlEmoji} $${unrealizedPnl.toFixed(2)}\n\n`;

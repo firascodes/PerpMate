@@ -25,6 +25,7 @@ import { getUserByTelegramId } from './db/users';
 import { parseTradeCommand, formatTradePreview, suggestCorrection } from './services/nlp';
 import { executeTradeOrder } from './services/trading';
 import { setupWebhookRoutes } from './services/webhooks';
+import { startSignalScheduler, isSchedulerRunning } from './cron/signals';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -54,6 +55,77 @@ bot.command('login', handleLogin);
 bot.command('balance', handleBalance);
 bot.command('withdraw', handleWithdraw);
 bot.command('faucet', handleFaucet);
+
+// Signal testing commands
+bot.command('testsignals', async (ctx) => {
+  const telegramId = String(ctx.from?.id);
+  await ctx.reply('🧪 Testing signal generation...');
+  
+  try {
+    const { testSignalGeneration } = await import('./cron/signals');
+    const signals = await testSignalGeneration();
+    
+    if (signals.length === 0) {
+      await ctx.reply('⚠️ No signals generated - market data might be unavailable');
+      return;
+    }
+    
+    await ctx.reply(`✅ Generated ${signals.length} test signals:`);
+    
+    for (const signal of signals) {
+      const { formatSignalMessage } = await import('./services/signals');
+      const message = formatSignalMessage(signal);
+      await ctx.reply(message, { parse_mode: 'Markdown' });
+    }
+    
+  } catch (error) {
+    logger.error({ error, telegramId }, 'Failed to test signals');
+    await ctx.reply('❌ Signal test failed. Check logs for details.');
+  }
+});
+
+bot.command('signalstatus', async (ctx) => {
+  try {
+    const running = isSchedulerRunning();
+    const { getSignalAnalytics } = await import('./services/signals');
+    const analytics = await getSignalAnalytics();
+    
+    let message = `📊 **Signal System Status**\n\n`;
+    message += `🤖 **Scheduler:** ${running ? '✅ Running' : '❌ Stopped'}\n`;
+    
+    if (analytics) {
+      message += `📈 **Analytics:**\n`;
+      message += `• Total signals: ${analytics.totalSignals}\n`;
+      message += `• Buy signals: ${analytics.actionBreakdown.buy}\n`;
+      message += `• Sell signals: ${analytics.actionBreakdown.sell}\n`;
+      message += `• Hold signals: ${analytics.actionBreakdown.hold}\n`;
+      message += `• High confidence (70%+): ${analytics.highConfidenceSignals}\n`;
+      message += `• Average confidence: ${analytics.averageConfidence.toFixed(1)}%\n`;
+    }
+    
+    await ctx.reply(message, { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    logger.error({ error }, 'Failed to get signal status');
+    await ctx.reply('❌ Failed to get signal status.');
+  }
+});
+
+bot.command('manualsignal', async (ctx) => {
+  const telegramId = String(ctx.from?.id);
+  await ctx.reply('🔄 Running manual signal generation...');
+  
+  try {
+    const { runManualSignalJob } = await import('./cron/signals');
+    const signals = await runManualSignalJob(bot);
+    
+    await ctx.reply(`✅ Manual signal job completed! Generated ${signals.length} signals.`);
+    
+  } catch (error) {
+    logger.error({ error, telegramId }, 'Failed to run manual signal job');
+    await ctx.reply('❌ Manual signal job failed.');
+  }
+});
 bot.command('checkdeposits', async (ctx) => {
   const telegramId = String(ctx.from?.id);
   await ctx.reply('🔍 Manually checking for deposits...');
@@ -92,9 +164,9 @@ bot.command('activate', async (ctx) => {
     const activated = await activateHyperliquidAccount(user.evmWalletId, user.evmWalletAddress);
     
     if (activated) {
-      await ctx.reply('✅ **Hyperliquid Account Activated!**\n\nYou can now start trading. Try: `buy 10 btc`', { parse_mode: 'Markdown' });
+      await ctx.reply('✅ *Hyperliquid Account Activated!*\n\nYou can now start trading. Try: `buy 10 btc`', { parse_mode: 'Markdown' });
     } else {
-      await ctx.reply('⚠️ **Activation Failed**\n\nMake sure you have USDC in your wallet. Use /fund to deposit.', { parse_mode: 'Markdown' });
+      await ctx.reply('⚠️ *Activation Failed*\n\nMake sure you have USDC in your wallet. Use /fund to deposit.', { parse_mode: 'Markdown' });
     }
   } catch (error) {
     logger.error({ error, telegramId }, 'Failed to activate Hyperliquid account');
@@ -173,7 +245,7 @@ bot.callbackQuery('withdraw_cancel', async (ctx) => {
 // Handle wallet callbacks
 bot.callbackQuery('export_keys', async (ctx) => {
   await ctx.answerCallbackQuery({ text: 'Private key export feature coming soon!' });
-  await ctx.reply('🔧 **Export Feature Coming Soon**\n\nFor now, please save the private keys shown above manually.');
+  await ctx.reply('🔧 *Export Feature Coming Soon*\n\nFor now, please save the private keys shown above manually.');
 });
 
 bot.callbackQuery('refresh_wallets', async (ctx) => {
@@ -286,7 +358,10 @@ async function main() {
   const { startDepositMonitoringLoop } = await import('./services/monitoring');
   startDepositMonitoringLoop(bot, monitoredWallets);
   
-  logger.info('Bot started with polling-based deposit monitoring');
+  // Start signal generation scheduler
+  startSignalScheduler(bot);
+  
+  logger.info('Bot started with deposit monitoring and signal scheduler');
 }
 
 main().catch((err) => {

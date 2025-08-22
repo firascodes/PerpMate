@@ -203,15 +203,15 @@ export function formatTradePreview(intent: TradeIntent): string {
   const actionText = action.toUpperCase();
   const leverageText = leverage && leverage > 1 ? ` (${leverage}x leverage)` : '';
   const amountText = amount ? `$${amount} ` : '';
-  const reasoningText = reasoning ? `\n\n🤖 **AI Analysis:** ${reasoning}` : '';
+  const reasoningText = reasoning ? `\n\n🤖 *AI Analysis:* ${reasoning}` : '';
   
-  return `${emoji} **Trade Preview**
+  return `${emoji} *Trade Preview*
 
-**Action:** ${actionText} ${asset}${leverageText}
-**Amount:** ${amountText || 'Will use available balance'}
-**Market:** Hyperliquid Perpetuals${reasoningText}
+*Action:* ${actionText} ${asset}${leverageText}
+*Amount:* ${amountText || 'Will use available balance'}
+*Market:* Hyperliquid Perpetuals${reasoningText}
 
-⚠️ **Confirm this trade?**
+⚠️ *Confirm this trade?*
 • This will place a market order
 • Execution happens immediately
 • Fees: ~0.02% taker fee`;
@@ -223,21 +223,21 @@ export function formatTradePreview(intent: TradeIntent): string {
 export function suggestCorrection(intent: TradeIntent): string {
   // If confidence is very low, it's likely not a trading command at all
   if (intent.confidence < 0.2) {
-    return `🤖 **Hi there!** 
+    return `🤖 *Hi there!* 
 
 I'm your trading assistant. To place a trade, try:
 
-**💬 Natural Language:**
+*💬 Natural Language:*
 • "buy 50 btc"
 • "long eth with 2x leverage"
 • "short 100 sol"
 
-**📋 Or use commands:**
+*📋 Or use commands:*
 • \`/balance\` - Check your funds
 • \`/fund\` - Deposit USDC
 • \`/help\` - See all commands
 
-**🎯 Need help?** Type \`/help\` for the complete guide!`;
+*🎯 Need help?* Type \`/help\` for the complete guide!`;
   }
 
   // For partial matches, provide specific guidance
@@ -258,12 +258,12 @@ I'm your trading assistant. To place a trade, try:
     "• `sell btc`"
   ];
   
-  return `❌ **Almost there!**
+  return `❌ *Almost there!*
 
 ${issues.join('\n')}
 
-**Try these formats:**
+*Try these formats:*
 ${examples.join('\n')}
 
-💡 **Tip:** Use \`/help\` to see all available commands.`;
+💡 *Tip:* Use \`/help\` to see all available commands.`;
 }

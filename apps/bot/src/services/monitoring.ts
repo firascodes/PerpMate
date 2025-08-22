@@ -106,11 +106,11 @@ export async function handleDepositDetected(
     // Notify user of successful deposit
     await bot.api.sendMessage(
       telegramId,
-      `✅ **Deposit Detected!**
+      `✅ *Deposit Detected!*
 
-${chainEmoji} **${deposit.amount.toFixed(6)} USDC** received on ${chainName}
+${chainEmoji} *${deposit.amount.toFixed(6)} USDC* received on ${chainName}
 
-⏳ **Auto-bridging to Hyperliquid...**
+⏳ *Auto-bridging to Hyperliquid...*
 This usually takes 2-5 minutes.
 
 I'll notify you when it's ready for trading! 🚀`,
@@ -145,7 +145,7 @@ I'll notify you when it's ready for trading! 🚀`,
     if (!quote) {
       await bot.api.sendMessage(
         telegramId,
-        `❌ **Bridge Error**\n\nCouldn't get route for ${deposit.amount} USDC. Please try /fund again.`,
+        `❌ *Bridge Error*\n\nCouldn't get route for ${deposit.amount} USDC. Please try /fund again.`,
         { parse_mode: 'Markdown' }
       );
       return;
@@ -154,7 +154,7 @@ I'll notify you when it's ready for trading! 🚀`,
     // Execute the bridge route
     await bot.api.sendMessage(
       telegramId, 
-      `🌉 **Bridging in progress...**\n\nRoute: ${chainName} → Arbitrum (HyperEVM)\nETA: ~${quote.estimate?.executionDuration || 300}s`,
+      `🌉 *Bridging in progress...*\n\nRoute: ${chainName} → Arbitrum (HyperEVM)\nETA: ~${quote.estimate?.executionDuration || 300}s`,
       { parse_mode: 'Markdown' }
     );
     
@@ -173,7 +173,7 @@ I'll notify you when it's ready for trading! 🚀`,
     
     await bot.api.sendMessage(
       telegramId,
-      `❌ **Auto-bridge failed**\n\nDeposit received but bridging failed. Use /preview to try manually.`,
+      `❌ *Auto-bridge failed*\n\nDeposit received but bridging failed. Use /preview to try manually.`,
       { parse_mode: 'Markdown' }
     );
   }
@@ -255,7 +255,7 @@ async function activateHyperliquidAccount(
     if (isActivated) {
       await bot.api.sendMessage(
         telegramId,
-        `✅ **Account Already Active!**\n\nYour Hyperliquid account is ready for trading! 🚀\n\nTry: \`buy 10 btc\` or \`short eth 50 usdc\``,
+        `✅ *Account Already Active!*\n\nYour Hyperliquid account is ready for trading! 🚀\n\nTry: \`buy 10 btc\` or \`short eth 50 usdc\``,
         { parse_mode: 'Markdown' }
       );
       return;
@@ -265,7 +265,7 @@ async function activateHyperliquidAccount(
     // The first deposit activates the account - no manual activation needed
     await bot.api.sendMessage(
       telegramId,
-      `🎯 **Hyperliquid Account Activated!**\n\nYour account is now ready for perpetual trading!\n\n🚀 **Ready to trade:**\n• \`buy 10 btc\`\n• \`short eth 100 usdc\`\n• \`long sol with 3x leverage\`\n\nUse /active to check positions anytime! 📊`,
+      `🎯 *Hyperliquid Account Activated!*\n\nYour account is now ready for perpetual trading!\n\n🚀 *Ready to trade:*\n• \`buy 10 btc\`\n• \`short eth 100 usdc\`\n• \`long sol with 3x leverage\`\n\nUse /active to check positions anytime! 📊`,
       { parse_mode: 'Markdown' }
     );
     
@@ -276,7 +276,7 @@ async function activateHyperliquidAccount(
     
     await bot.api.sendMessage(
       telegramId,
-      `⚠️ **Account Activation Pending**\n\nFunds bridged successfully, but account activation is still processing.\n\nTry trading in a few minutes or visit https://app.hyperliquid.xyz`,
+      `⚠️ *Account Activation Pending*\n\nFunds bridged successfully, but account activation is still processing.\n\nTry trading in a few minutes or visit https://app.hyperliquid.xyz`,
       { parse_mode: 'Markdown' }
     );
   }

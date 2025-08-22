@@ -65,7 +65,7 @@ export async function handleWithdraw(ctx: Context) {
     keyboard.text('❌ Cancel', 'withdraw_cancel');
 
     await ctx.reply(
-      `💸 **Withdraw USDC**\n\nSelect which chain to withdraw from:\n\n💰 **Total Available:** ${totalBalance.toFixed(2)} USDC`,
+      `💸 *Withdraw USDC*\n\nSelect which chain to withdraw from:\n\n💰 *Total Available:* ${totalBalance.toFixed(2)} USDC`,
       {
         reply_markup: keyboard,
         parse_mode: 'Markdown',
@@ -114,7 +114,7 @@ export async function handleWithdrawChainSelection(ctx: Context, chain: 'solana'
     const chainName = chain === 'solana' ? 'Solana' : 'Base';
 
     await ctx.reply(
-      `${chainEmoji} **Withdrawing from ${chainName}**\n\nAvailable: **${balance.toFixed(6)} USDC**\n\n💰 **Enter amount to withdraw:**\n\nExample: \`50\` or \`all\``,
+      `${chainEmoji} *Withdrawing from ${chainName}*\n\nAvailable: *${balance.toFixed(6)} USDC*\n\n💰 *Enter amount to withdraw:*\n\nExample: \`50\` or \`all\``,
       { parse_mode: 'Markdown' }
     );
 
@@ -174,7 +174,7 @@ export async function handleWithdrawAmount(ctx: Context, amountText: string) {
       : '0x742d35Cc6636C0532925a3b8D6C90532e4A5cf4a';
 
     await ctx.reply(
-      `💰 **Amount:** ${amount.toFixed(6)} USDC\n\n📍 **Enter destination ${chainName} address:**\n\nExample: \`${exampleAddress}\``,
+      `💰 *Amount:* ${amount.toFixed(6)} USDC\n\n📍 *Enter destination ${chainName} address:*\n\nExample: \`${exampleAddress}\``,
       { parse_mode: 'Markdown' }
     );
 
@@ -216,7 +216,7 @@ export async function handleWithdrawAddress(ctx: Context, address: string) {
       .text('❌ Cancel', 'withdraw_cancel');
 
     await ctx.reply(
-      `🔍 **Withdrawal Confirmation**\n\n${chainEmoji} **From:** ${chainName}\n💰 **Amount:** ${state.amount.toFixed(6)} USDC\n📍 **To:** \`${state.destinationAddress}\`\n\n⚠️ **Please verify the address carefully!**`,
+      `🔍 *Withdrawal Confirmation*\n\n${chainEmoji} *From:* ${chainName}\n💰 *Amount:* ${state.amount.toFixed(6)} USDC\n📍 *To:* \`${state.destinationAddress}\`\n\n⚠️ *Please verify the address carefully!*`,
       {
         reply_markup: keyboard,
         parse_mode: 'Markdown'
@@ -249,7 +249,7 @@ export async function handleWithdrawConfirm(ctx: Context) {
       return ctx.reply('❌ Source wallet not found.');
     }
 
-    await ctx.reply('🔄 **Processing withdrawal...**\n\nAnalyzing transfer type...');
+    await ctx.reply('🔄 *Processing withdrawal...*\n\nAnalyzing transfer type...');
 
     try {
       // Determine if this is a same-chain transfer or cross-chain bridge
@@ -257,7 +257,7 @@ export async function handleWithdrawConfirm(ctx: Context) {
       
       if (isSameChainTransfer) {
         // Direct same-chain transfer (much cheaper and faster)
-        await ctx.reply('💰 **Same-chain transfer detected** - Processing direct transfer...');
+        await ctx.reply('💰 *Same-chain transfer detected* - Processing direct transfer...');
         
         const txHash = await executeSameChainTransfer(
           state.sourceChain,
@@ -270,7 +270,7 @@ export async function handleWithdrawConfirm(ctx: Context) {
         
         if (txHash) {
           await ctx.reply(
-            `✅ **Transfer Completed!**\n\n🔗 **Transaction:** \`${txHash}\`\n\n💸 **${state.amount} USDC** sent to your destination address!`,
+            `✅ *Transfer Completed!*\n\n🔗 *Transaction:* \`${txHash}\`\n\n💸 *${state.amount} USDC* sent to your destination address!`,
             { parse_mode: 'Markdown' }
           );
         } else {
@@ -280,9 +280,9 @@ export async function handleWithdrawConfirm(ctx: Context) {
       } else {
         // Check if this is actually a same-chain transfer that Li.Fi can handle
         if (isSameChainTransfer && state.sourceChain === 'solana') {
-          await ctx.reply('💰 **Same-chain Solana transfer** - Using Li.Fi for reliable delivery...');
+          await ctx.reply('💰 *Same-chain Solana transfer* - Using Li.Fi for reliable delivery...');
         } else {
-          await ctx.reply('🌉 **Cross-chain bridge required** - Getting Li.Fi route...');
+          await ctx.reply('🌉 *Cross-chain bridge required* - Getting Li.Fi route...');
         }
         
         const route = await getRouteQuote(
@@ -297,14 +297,14 @@ export async function handleWithdrawConfirm(ctx: Context) {
         }
 
         await ctx.reply(
-          `🌉 **Bridge Route Found**\n\nETA: ~${route.estimate?.executionDuration || 300}s\nFees: ~$${(Number(route.estimate?.gasCosts?.[0]?.amountUSD) || 2).toFixed(2)}\n\n🚀 **Executing bridge...**`
+          `🌉 *Bridge Route Found*\n\nETA: ~${route.estimate?.executionDuration || 300}s\nFees: ~$${(Number(route.estimate?.gasCosts?.[0]?.amountUSD) || 2).toFixed(2)}\n\n🚀 *Executing bridge...*`
         );
 
         const routeExecution = await executeLiFiRoute(route, user.evmWalletId!);
 
         if (routeExecution.success) {
           await ctx.reply(
-            `✅ **Bridge Initiated!**\n\n🔗 **Transaction:** \`${routeExecution.txHash}\`\n\n⏳ Your USDC will arrive at the destination in ~${route.estimate?.executionDuration || 300} seconds.`,
+            `✅ *Bridge Initiated!*\n\n🔗 *Transaction:* \`${routeExecution.txHash}\`\n\n⏳ Your USDC will arrive at the destination in ~${route.estimate?.executionDuration || 300} seconds.`,
             { parse_mode: 'Markdown' }
           );
         } else {
@@ -314,7 +314,7 @@ export async function handleWithdrawConfirm(ctx: Context) {
 
     } catch (error) {
       logger.error({ error, state }, 'Failed to execute withdrawal');
-      await ctx.reply('❌ **Withdrawal Failed**\n\nUnable to process withdrawal. Please try again later or contact support.');
+      await ctx.reply('❌ *Withdrawal Failed*\n\nUnable to process withdrawal. Please try again later or contact support.');
     }
 
     // Clear state
@@ -333,7 +333,7 @@ export async function handleWithdrawCancel(ctx: Context) {
     await ctx.answerCallbackQuery();
     
     withdrawStates.delete(telegramId);
-    await ctx.reply('❌ **Withdrawal cancelled.**');
+    await ctx.reply('❌ *Withdrawal cancelled.*');
     
   } catch (error) {
     logger.error({ error }, 'Failed to cancel withdrawal');
@@ -382,19 +382,32 @@ async function executeSameChainTransfer(
     }
 
     if (chain === 'solana') {
-      // For now, let's simplify and use a more reliable approach
-      // Privy's Solana integration might require additional setup or different methods
-      logger.info({ chain, amount, fromAddress, toAddress }, 'Attempting Solana USDC transfer');
+      logger.info({ chain, amount, fromAddress, toAddress }, 'Attempting Solana USDC transfer via Privy');
       
       try {
-        // Instead of complex Privy Solana signer, let's check if we can use a simpler approach
-        // or fall back to Li.Fi for cross-chain reliability
+        // Use Privy's simplified approach for Solana SPL token transfers
+        const transferResult = await (privyClient as any).walletApi.solana.transferTokens({
+          walletId: solanaWalletId,
+          to: toAddress,
+          amount: (amount * 1_000_000).toString(), // Convert to smallest unit (USDC has 6 decimals)
+          mint: process.env.SOLANA_USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' // USDC mint address
+        });
         
-        logger.warn('Solana direct transfer via Privy is complex - falling back to Li.Fi bridge for reliability');
-        return null; // This will trigger the Li.Fi fallback in the calling function
+        if (transferResult?.transactionHash) {
+          logger.info({ 
+            txHash: transferResult.transactionHash, 
+            amount, 
+            toAddress 
+          }, 'Solana USDC transfer completed via Privy');
+          return transferResult.transactionHash;
+        } else {
+          throw new Error('No transaction hash returned from Privy Solana transfer');
+        }
         
       } catch (solanaError) {
-        logger.error({ solanaError }, 'Solana direct transfer failed, falling back to Li.Fi');
+        logger.error({ solanaError, amount, fromAddress, toAddress }, 'Privy Solana transfer failed, falling back to Li.Fi');
+        // For maximum reliability, fall back to Li.Fi bridge if Privy direct transfer fails
+        // This ensures users can still complete withdrawals even if Privy has issues
         return null;
       }
       
